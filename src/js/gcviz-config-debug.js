@@ -310,7 +310,16 @@
 				name: 'gcviz-vm-inset',
 				location: locationPath + 'src/js/widgets/viewmodels',
 				main: 'insetVM'
+			}, {
+				name: 'gcviz-v-datagrid',
+				location: locationPath + 'src/js/widgets/views',
+				main: 'datagridV'
+			}, {
+				name: 'gcviz-vm-datagrid',
+				location: locationPath + 'src/js/widgets/viewmodels',
+				main: 'datagridVM'
 			}
+
 		]
 	});
 

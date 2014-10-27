@@ -19,7 +19,7 @@
   padding: .4em 1em;
   position: relative;
   background-repeat: repeat-x;
-  background-image: url($img-root + "headBlackbar.png");
+  background-image: url($img-root + "head_grey_bg.png");
 }
 .ui-dialog .ui-dialog-titlebar, .ui-widget-header .ui-corner-all {
   border-bottom-left-radius: 0px!important;
@@ -41,6 +41,7 @@
 	width: 90%;
 	overflow: hidden;
 	text-overflow: ellipsis;
+  color: #000000!important;
 }
 .ui-dialog .ui-dialog-titlebar-close {
 	position: absolute;

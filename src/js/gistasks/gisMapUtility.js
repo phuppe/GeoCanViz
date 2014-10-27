@@ -7,7 +7,8 @@
  */
 (function () {
 	'use strict';
-	define(['kineticpanning',
+	define(['jquery-private',
+			'kineticpanning',
 			'gcviz-func',
 			'dijit/Menu',
 			'dijit/MenuItem',
@@ -23,10 +24,23 @@
 			'esri/layers/WebTiledLayer',
 			'esri/layers/WMSLayer',
 			'esri/layers/WMSLayerInfo',
+			'esri/geometry',
 			'esri/geometry/Extent',
             'esri/geometry/Point',
-            'esri/IdentityManager'
-	], function(kpan, func, menu, menuItem, menupopup, gisLegend, gisCluster, esriConfig, esriMap, esriFL, esriTiled, esriDyna, esriImage, webTiled, wms, wmsInfo, esriExt, esriPoint) {
+            'esri/dijit/Popup',
+            'esri/dijit/PopupTemplate',
+            'esri/dijit/InfoWindow',
+            'esri/symbols/SimpleFillSymbol',
+            'esri/Color',
+            'dojo/Deferred',
+            'dojo/DeferredList',
+            'dojo/dom-construct',
+            'dojo/dom-class',
+            'dojo/_base/connect',
+            'esri/tasks/IdentifyTask',
+            'esri/tasks/IdentifyParameters',
+            'dojo/_base/array'
+	], function($viz, kpan, func, menu, menuItem, menupopup, gisLegend, gisCluster, esriConfig, esriMap, esriFL, esriTiled, esriDyna, esriImage, webTiled, wms, wmsInfo, esriGeom, esriExt, esriPoint, esriPopup, esriPopupTemplate, esriInfoWindow, esriFill, esriColor, dojoDeferred, dojoDefList, domConstruct, domClass, dojoConnect, IdentifyTask, IdentifyParameters, arrayUtils) {
 		var mapArray = {},
 			setProxy,
 			createMap,
@@ -36,6 +50,10 @@
 			connectLinkEvent,
 			connectEvent,
 			addLayer,
+			createIdentifyTask,
+			executeIdentifyTask,
+			returnIdentifyResults,
+			configLayers,
 			resizeMap,
 			resizeCenterMap,
 			zoomPoint,
@@ -55,7 +73,14 @@
 			insetArray = {},
 			isFullscreen,
 			linkCount,
-			noLink = false;
+			noLink = false,
+			identifyTask,
+			identifyTaskIndex = -1,
+			identifyParams,
+			identifyTasks = [],
+			themap,
+			theIdentifyFeatures,
+			returnToFunction;
 
 		setProxy = function(url) {
 			// set proxy for esri request (https://github.com/Esri/resource-proxy)
@@ -82,6 +107,7 @@
 
 			// set options
 			if (lod.length) {
+			//if (lod.values.length) {
 				options = {
 					extent: initExtent,
 					spatialReference: { 'wkid': wkid },
@@ -324,6 +350,99 @@
 			}
 		};
 
+		// createIdentifyTask = function(mymap, thelayer, mapid, callbackFunction) {
+			// themap = mymap;
+			// returnToFunction = callbackFunction;
+			// // Add map event
+			// theIdentifyFeatures = mymap.on('click', executeIdentifyTask);
+			// //create identify tasks and setup parameters
+			// identifyTask = new IdentifyTask(thelayer.layerinfo.url);
+			// identifyParams = new IdentifyParameters();
+			// identifyParams.tolerance = 3;
+			// identifyParams.returnGeometry = true;
+			// identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE; //LAYER_OPTION_ALL
+			// identifyParams.width = mymap.width;
+			// identifyParams.height = mymap.height;
+			// //identifyTasks.Add(identifyTask);
+			// identifyTaskIndex++;
+			// identifyTasks[identifyTaskIndex] = identifyTask;
+		// };
+
+		createIdentifyTask = function(mymap, layers, mapid, callbackFunction) {
+			themap = mymap;
+			returnToFunction = callbackFunction;
+			// Add map event
+			theIdentifyFeatures = mymap.on('click', executeIdentifyTask);
+			// Are popups desired?
+			for (var i=0; i < layers.length; i++) {
+				if (layers[i].popups) {
+					//create identify tasks and setup parameters
+					identifyTask = new IdentifyTask(layers[i].layerinfo.url);
+					identifyParams = new IdentifyParameters();
+					identifyParams.tolerance = 3;
+					identifyParams.returnGeometry = true;
+					identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE; //LAYER_OPTION_ALL
+					identifyParams.width = mymap.width;
+					identifyParams.height = mymap.height;
+					//identifyTasks.Add(identifyTask);
+					identifyTaskIndex++;
+					identifyTasks[identifyTaskIndex] = identifyTask;
+				}
+			}
+		};
+
+//		executeIdentifyTask = function(event) {
+//			var mapid,
+//				right,
+//				i,
+//				deferred,
+//				features = [];
+//			mapid = event.currentTarget.id.substr(0,event.currentTarget.id.indexOf('_'));
+//			right = $viz(window).width() - $viz('#popup' + mapid).width() - 5;
+//			identifyParams.geometry = event.mapPoint;
+//			identifyParams.mapExtent = themap.extent;
+//redo like sample from gis stackexchange...
+//			deferred = identifyTask
+//				.execute(identifyParams)
+//				.addCallback(function (response) {
+//					// send the resonse to the calling view model 
+//					returnToFunction(response);
+//					return features;
+//				});
+//
+//		};
+
+		executeIdentifyTask = function(event) {
+			var mapid,
+				right,
+				i,
+				deferred = [],
+				defList = [],
+				features = [],
+				dlTasks;
+			mapid = event.currentTarget.id.substr(0,event.currentTarget.id.indexOf('_'));
+			right = $viz(window).width() - $viz('#popup' + mapid).width() - 5;
+			identifyParams.geometry = event.mapPoint;
+			identifyParams.mapExtent = themap.extent;
+			// define all deferred functions
+			for (i=0; i<identifyTasks.length; i++) {
+				deferred[i] = new dojoDeferred();
+				defList.push(deferred[i]);
+			}
+			dlTasks = new dojoDefList(defList);
+			dlTasks.then(returnIdentifyResults);
+			// returnIdentifyResults will be called after all tasks have completed
+			for (i=0; i<identifyTasks.length; i++) {
+				//identifyTasks[i].execute(identifyParams, deferred[i].callback);
+				identifyTasks[i].execute(identifyParams, dlTasks.callback);
+			}
+		};
+
+		returnIdentifyResults = function(response) {
+			// send the resonse to the calling view model 
+			returnToFunction(response);
+		};
+
 		getOverviewLayer = function(configoverviewtype, configoverviewurl) {
 			var bLayer;
             if (configoverviewtype === 1) { // WMTS service
@@ -488,6 +607,7 @@
 			createMap: createMap,
 			createInset: createInset,
 			addLayer: addLayer,
+			createIdentifyTask: createIdentifyTask,
 			resizeMap: resizeMap,
 			resizeCenterMap: resizeCenterMap,
 			zoomPoint: zoomPoint,

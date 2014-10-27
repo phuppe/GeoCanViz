@@ -114,3 +114,4 @@ General (i18n)#%all#All#Tous
 #%mp-prev#Next (Right arrow key)#Suivant (touche flèche droite)
 #%mp-count#%curr% of %total%#%curr% de %total%
 #%mp-error#<a href='%url%'>The image</a> could not be loaded.#<a href='%url%'>L'image</a> ne peut être chargée.
+#%popup-alllayers#All layers#Toutes les couches

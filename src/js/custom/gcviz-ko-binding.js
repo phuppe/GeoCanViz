@@ -267,6 +267,9 @@
 			if (typeof options.close !== 'undefined') {
 				options.close = options.close;
 			}
+			if (typeof options.title !== 'undefined') {
+				options.title = options.title;
+			}
 
 			$element.dialog(options);
 
